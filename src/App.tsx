@@ -5,6 +5,8 @@ import LoginPage from "./pages/LoginPage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 import SupplierHome from "./pages/supplier/SupplierHome";
 import EmployeeHome from "./pages/employee/EmployeeHome";
+import AdminPage from "./pages/employee/AdminPage";
+import SetupPage from "./pages/SetupPage";
 
 function RootRedirect() {
   const { status, profile } = useAuth();
@@ -20,6 +22,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<RootRedirect />} />
           <Route path="/giris" element={<LoginPage />} />
+          <Route path="/kurulum" element={<SetupPage />} />
           <Route path="/yetkisiz" element={<UnauthorizedPage />} />
 
           {/* Tedarikçi alanı */}
@@ -33,6 +36,14 @@ export default function App() {
           />
 
           {/* Şirket çalışanı alanı */}
+          <Route
+            path="/panel/yonetim"
+            element={
+              <RequireAuth userType="employee" permission="admin.users">
+                <AdminPage />
+              </RequireAuth>
+            }
+          />
           <Route
             path="/panel/*"
             element={

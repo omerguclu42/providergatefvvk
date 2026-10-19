@@ -29,6 +29,15 @@ npm run dev
 3. **Proje ayarları → Web uygulaması ekle** adımından config değerlerini `.env.local`'a yazın.
 4. Kuralları yayınlayın: `firebase deploy --only firestore:rules`
 
+## İlk kurulum
+
+1. Güvenlik kurallarını yayınlayın (Firestore → Rules → `firestore.rules` içeriğini yapıştırıp **Publish**).
+2. Uygulamada `/kurulum` adresini açın (giriş sayfasında kurulum yapılmamışsa bağlantı çıkar).
+3. İlk **Sistem Yöneticisi** hesabını oluşturun. Varsayılan roller otomatik eklenir.
+4. **Yönetim** sayfasından tedarikçi firmaları ve kullanıcıları ekleyin.
+
+Kurulum bir kez yapılır; sonrasında kurallar tekrarını engeller.
+
 ## Yetkilendirme
 
 Ayrıntılar: [docs/YETKILENDIRME.md](docs/YETKILENDIRME.md)

@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { FirebaseError } from "firebase/app";
+import { doc, getDoc } from "firebase/firestore";
 import { useAuth } from "../auth/AuthContext";
 import { homePathFor } from "../auth/guards";
-import { firebaseConfigured } from "../lib/firebase";
+import { db, firebaseConfigured } from "../lib/firebase";
 
 function errorMessage(err: unknown): string {
   if (err instanceof FirebaseError) {
@@ -32,6 +33,13 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
+
+  useEffect(() => {
+    getDoc(doc(db, "system", "setup"))
+      .then((s) => setSetupOpen(!s.exists()))
+      .catch(() => setSetupOpen(false));
+  }, []);
 
   if (status === "signedIn" && profile) {
     const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
@@ -119,6 +127,11 @@ export default function LoginPage() {
           </button>
 
           <p className="muted small">Şifrenizi unuttuysanız sistem yöneticinizle iletişime geçin.</p>
+          {setupOpen && (
+            <p className="small" style={{ textAlign: "center", margin: "8px 0 0" }}>
+              Sistem henüz kurulmamış. <Link to="/kurulum">İlk kurulumu başlat</Link>
+            </p>
+          )}
         </form>
       </main>
     </div>

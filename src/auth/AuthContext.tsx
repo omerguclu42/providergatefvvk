@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from "firebase/auth";
 import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { auth, db, usernameToEmail } from "../lib/firebase";
@@ -14,6 +14,8 @@ interface AuthState {
   can: (permission: Permission) => boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Profil ve yetkileri yeniden yükler (ör. ilk kurulumdan sonra) */
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -31,8 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [permissions, setPermissions] = useState<Set<Permission>>(new Set());
 
-  useEffect(() => {
-    return onAuthStateChanged(auth, async (fbUser) => {
+  const loadProfile = useCallback(async (fbUser: User | null) => {
       setUser(fbUser);
       if (!fbUser) {
         setProfile(null);
@@ -60,8 +61,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setPermissions(new Set());
         setStatus("noProfile");
       }
-    });
   }, []);
+
+  useEffect(() => onAuthStateChanged(auth, loadProfile), [loadProfile]);
 
   const value = useMemo<AuthState>(
     () => ({
@@ -74,8 +76,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await signInWithEmailAndPassword(auth, usernameToEmail(username), password);
       },
       logout: () => signOut(auth),
+      refresh: () => loadProfile(auth.currentUser),
     }),
-    [status, user, profile, permissions],
+    [status, user, profile, permissions, loadProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

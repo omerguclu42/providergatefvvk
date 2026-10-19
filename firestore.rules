@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// ProviderGate FVVK – Firestore güvenlik kuralları (aşama 1: giriş ve yetkilendirme)
+// ProviderGate FVVK – Firestore güvenlik kuralları
 // Not: Arayüzdeki gizleme tek başına güvenlik değildir; asıl koruma buradadır.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -11,11 +11,37 @@ service cloud.firestore {
     function isEmployee() { return isActive() && me().userType == 'employee'; }
     function isAdmin() { return isEmployee() && ('admin' in me().roles); }
 
+    function setupPath() { return /databases/$(database)/documents/system/setup; }
+    function setupDone() { return exists(setupPath()); }
+
+    // İlk kurulum kaydı. Yalnızca bir kez, ilk yönetici profiliyle
+    // aynı toplu yazımda (batch) oluşturulabilir; sonra değiştirilemez.
+    match /system/setup {
+      // Giriş öncesi kurulum ekranının "yapıldı mı" kontrolü için herkese açık.
+      allow read: if true;
+      allow create: if signedIn()
+        && !setupDone()
+        && request.resource.data.adminUid == request.auth.uid
+        && existsAfter(/databases/$(database)/documents/users/$(request.auth.uid));
+      allow update, delete: if false;
+    }
+
     // Kullanıcı profilleri: herkes yalnızca kendi profilini okur.
-    // Profil oluşturma/değiştirme yalnızca sistem yöneticisine açıktır.
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
-      allow write: if isAdmin();
+
+      // İlk kurulum: kurulum yapılmamışsa, kişi kendisini yönetici olarak oluşturabilir.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && !setupDone()
+        && getAfter(setupPath()).data.adminUid == uid
+        && request.resource.data.userType == 'employee'
+        && request.resource.data.active == true
+        && request.resource.data.roles == ['admin'];
+
+      // Sonrasında kullanıcı oluşturma/güncelleme yalnızca yöneticide.
+      allow create, update: if isAdmin();
+      allow delete: if false;
     }
 
     // Rol tanımları: çalışanlar okur (yetkilerini hesaplamak için), yönetici yazar.
