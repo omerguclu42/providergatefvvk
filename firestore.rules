@@ -1,0 +1,38 @@
+rules_version = '2';
+
+// ProviderGate FVVK – Firestore güvenlik kuralları (aşama 1: giriş ve yetkilendirme)
+// Not: Arayüzdeki gizleme tek başına güvenlik değildir; asıl koruma buradadır.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function isActive() { return signedIn() && me().active == true; }
+    function isEmployee() { return isActive() && me().userType == 'employee'; }
+    function isAdmin() { return isEmployee() && ('admin' in me().roles); }
+
+    // Kullanıcı profilleri: herkes yalnızca kendi profilini okur.
+    // Profil oluşturma/değiştirme yalnızca sistem yöneticisine açıktır.
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // Rol tanımları: çalışanlar okur (yetkilerini hesaplamak için), yönetici yazar.
+    match /roles/{roleId} {
+      allow read: if isEmployee();
+      allow write: if isAdmin();
+    }
+
+    // Tedarikçi firmalar
+    match /suppliers/{supplierId} {
+      allow read: if isEmployee() || (isActive() && me().supplierId == supplierId);
+      allow write: if isAdmin();
+    }
+
+    // Diğer her şey varsayılan olarak kapalı.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
