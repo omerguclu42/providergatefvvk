@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Panel – ProviderGate FVVK</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="loading">
+    <div class="app-shell">
+      <header class="topbar">
+        <strong>ProviderGate FVVK</strong>
+        <div class="topbar-user">
+          <span><span data-user-name></span><span class="badge" data-user-type></span></span>
+          <button class="link-btn" data-logout>Çıkış</button>
+        </div>
+      </header>
+      <div class="app-body">
+        <!-- data-permission: yetkisi olmayan kullanıcıda menü öğesi kaldırılır -->
+        <nav class="sidenav">
+          <a href="panel.html" class="active">Özet</a>
+          <a href="#" data-permission="services.view">Hizmet Dosyaları</a>
+          <a href="#" data-permission="pricing.view">Fiyatlandırma</a>
+          <a href="#" data-permission="invoices.view">Faturalar</a>
+          <a href="#" data-permission="reports.view">Raporlar</a>
+          <a href="#" data-permission="admin.users">Yönetim</a>
+        </nav>
+        <main class="content">
+          <h1>Hoş geldiniz, <span data-user-name></span></h1>
+          <p class="muted">Roller: <span data-user-roles></span></p>
+          <p>Bu hesapta tanımlı yetkiler: <span id="perms"></span></p>
+          <div class="placeholder">Hizmet dosyaları ve statü akışı bir sonraki adımda bu alana eklenecek.</div>
+        </main>
+      </div>
+    </div>
+
+    <script type="module">
+      import { requireAuth } from "./js/auth.js";
+      const { permissions } = await requireAuth({ userType: "employee" });
+      document.getElementById("perms").textContent = [...permissions].join(", ") || "yok";
+    </script>
+  </body>
+</html>

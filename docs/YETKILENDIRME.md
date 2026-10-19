@@ -1,98 +1,52 @@
 # Yetkilendirme Tasarımı
 
-## 1. Giriş: kullanıcı adı ile
-
-Firebase Authentication e-posta + şifre ile çalışır. Kullanıcı adıyla giriş için
-kullanıcı adı arka planda iç bir e-postaya çevrilir:
-
-```
-ahmet.yilmaz  →  ahmet.yilmaz@users.providergatefvvk.app
-```
-
-- Bu e-postalar gerçek değildir, yalnızca giriş anahtarıdır. Kullanıcı bunu hiç görmez.
-- Girişte "@" yazılırsa doğrudan e-posta olarak kullanılır (ör. yönetici hesapları).
-- Kullanıcıları **yalnızca yönetici açar**, dışarıdan kayıt yoktur.
-- Şifre sıfırlamayı da yönetici yapar, çünkü iç e-postalara posta gitmez.
-- Bu yaklaşım kullanıcı adı → e-posta eşleme tablosunu herkese açık bırakma riskini de ortadan kaldırır.
-
-## 2. İki ana kullanıcı tipi
+## 1. İki ana kullanıcı tipi
 
 | | Tedarikçi (`supplier`) | Şirket çalışanı (`employee`) |
 |---|---|---|
-| Giriş sonrası | `/tedarikci` | `/panel` |
-| Gördüğü veri | Yalnızca kendi firmasına (`supplierId`) atanan dosyalar | Rolüne göre tüm dosyalar |
-| Yetki kaynağı | Sabit tedarikçi seti (daraltılabilir, genişletilemez) | Atanan rollerin birleşimi + kişisel ek yetkiler |
+| Giriş sonrası | `tedarikci.html` | `panel.html` |
+| Gördüğü veri | Yalnızca kendi firmasına (`supplierId`) atanan dosyalar | Rolüne göre |
+| Yetki kaynağı | Sabit tedarikçi seti | Atanan rollerin birleşimi |
 
-Bir tedarikçi kullanıcısı çalışan sayfalarına URL yazarak da giremez. Hem arayüz
-koruması (`RequireAuth userType="employee"`) hem de Firestore kuralları bunu engeller.
+Tedarikçi, çalışan sayfasının adresini yazsa bile `yetkisiz.html` sayfasına yönlenir.
 
-## 3. Yetkiler: "görebilme" ve "işlem yapabilme" ayrı
+## 2. Görme ve işlem yetkisi ayrı
 
-Her yetki `modül.eylem` biçimindedir:
-
+Yetkiler `modül.eylem` biçimindedir:
 - `*.view` → sayfayı ve menü öğesini görür
-- `*.edit`, `*.approve`, `*.upload`, `*.updateStatus` … → o sayfada ilgili butonu kullanır
+- `*.edit`, `*.approve`, `*.upload`, `*.updateStatus` … → ilgili butonu kullanır
 
-Böylece bir kullanıcı faturaları görebilir (`invoices.view`) ama onaylayamaz
-(`invoices.approve` yoksa onay butonu çizilmez).
+Örnek: `invoices.view` yetkisi olan ama `invoices.approve` yetkisi olmayan kişi faturayı görür, onay butonunu görmez.
 
-Tam liste: `src/auth/permissions.ts`.
+Tam liste: `js/permissions.js`.
 
-## 4. Roller (şirket çalışanları)
+## 3. Roller (şirket çalışanları)
 
-Başlangıç rolleri aşağıda. Firestore `roles/{rolId}` koleksiyonunda tutulur,
-ileride yönetim ekranından düzenlenecek.
+| Rol ID | Ad | Özet |
+|---|---|---|
+| `operation` | Operasyon | Dosya açar, tedarikçiye atar, statü ilerletir |
+| `pricing` | Fiyatlandırma | Fiyat girer ve onaylar |
+| `finance` | Finans / Muhasebe | Faturayı onaylar veya reddeder, rapor görür |
+| `manager` | Yönetici | Her şeyi görür, işlem yapmaz |
+| `admin` | Sistem Yöneticisi | Tüm yetkiler |
 
-| Rol | Özet |
-|---|---|
-| `operation` – Operasyon | Dosya açar, tedarikçiye atar, statü ilerletir |
-| `pricing` – Fiyatlandırma | Fiyat girer ve onaylar |
-| `finance` – Finans/Muhasebe | Faturayı onaylar veya reddeder, rapor görür |
-| `manager` – Yönetici | Her şeyi görür, işlem yapmaz |
-| `admin` – Sistem Yöneticisi | Tüm yetkiler, kullanıcı ve rol yönetimi |
+Bir kişiye birden fazla rol verilebilir, yetkiler birleşir. Kişiye özel ek yetki için
+profile `extraPermissions` (array) alanı eklenebilir.
 
-Bir çalışana birden fazla rol verilebilir. Yetkiler birleşir.
+## 4. Sayfalarda kullanım
 
-## 5. Veri modeli
-
-```
-users/{uid}
-  username: "ahmet.yilmaz"
-  displayName: "Ahmet Yılmaz"
-  userType: "employee" | "supplier"
-  supplierId: "TED-001"          # sadece tedarikçi
-  roles: ["operation","finance"] # sadece çalışan
-  extraPermissions: [...]        # opsiyonel
-  active: true
-
-roles/{roleId}
-  name: "Finans / Muhasebe"
-  permissions: ["invoices.view","invoices.approve", ...]
-
-suppliers/{supplierId}
-  name, vergiNo, iletişim ...
+```html
+<!-- Yetki yoksa bu öğe sayfadan kaldırılır -->
+<button data-permission="invoices.approve">Onayla</button>
 ```
 
-## 6. Kodda kullanım
-
-```tsx
-// Sayfa koruması
-<RequireAuth userType="employee" permission="invoices.view"> ... </RequireAuth>
-
-// Buton koruması
-<Can permission="invoices.approve"><button>Onayla</button></Can>
-
-// Mantık içinde
-const { can } = useAuth();
-if (can("services.close")) { ... }
+```js
+import { requireAuth } from "./js/auth.js";
+const { can } = await requireAuth({ userType: "employee", permission: "invoices.view" });
+if (can("services.close")) { /* ... */ }
 ```
 
-## 7. Güvenlik katmanları
+## 5. Güvenlik
 
-1. **Arayüz:** menü ve butonlar yetkiye göre gizlenir. Bu katman kullanıcı deneyimi içindir, güvenlik sağlamaz.
-2. **Firestore kuralları:** asıl koruma burada. Yetkisiz okuma ve yazma sunucu tarafında reddedilir.
-3. **Statü geçişleri (sonraki aşama):** bir statüden diğerine kimin geçirebileceği
-   Cloud Functions ile sunucuda doğrulanacak. Her geçiş bir geçmiş (audit log) kaydı oluşturacak.
-
-**Sonraki iyileştirme:** Yetkiler Cloud Function ile Firebase *custom claims*'e yazılacak.
-Böylece kurallar her istekte profil dokümanı okumak zorunda kalmaz; hem hızlanır hem ucuzlar.
+Butonları gizlemek tek başına güvenlik değildir. Asıl koruma `firestore.rules` içindedir.
+Hizmet dosyaları ve faturalar eklendikçe kurallar da "kim neyi okuyup yazabilir" şeklinde genişletilecek.

@@ -1,42 +1,49 @@
 # ProviderGate FVVK
 
 Asistans firması ile tedarikçileri arasında hizmet takibi, statü yönetimi,
-fiyatlandırma ve faturalandırma portalı.
+fiyatlandırma ve faturalandırma portalı (taslak).
 
-**İş akışı (hedef):** Hizmet atanır → tedarikçi statüleri ilerletir ve hizmeti
+**Hedef iş akışı:** Hizmet atanır → tedarikçi statüleri ilerletir ve hizmeti
 sonlandırır → dosya fiyatlanır → tedarikçi faturayı yükleyip gönderir → finans
 kontrol edip onaylar. Her adım dosyayı yeni bir statüye taşır.
 
-## Teknoloji
+Sade HTML + JavaScript; derleme yok. GitHub Pages ile yayınlanır, Firebase
+(Authentication + Firestore) doğrudan sayfadan kullanılır.
 
-- React 18 + TypeScript + Vite
-- Firebase Authentication (kullanıcı adı + şifre)
-- Cloud Firestore
-- Firebase Hosting
+## Dosyalar
 
-## Kurulum
+| Dosya | Görev |
+|---|---|
+| `index.html` | Giriş sayfası |
+| `panel.html` | Şirket çalışanı ana sayfası |
+| `tedarikci.html` | Tedarikçi ana sayfası |
+| `yetkisiz.html` | Yetkisiz erişim sayfası |
+| `js/firebase.js` | Firebase bağlantısı |
+| `js/permissions.js` | Yetkiler ve roller |
+| `js/auth.js` | Sayfa koruması (`requireAuth`) ve yetkiye göre gizleme |
+| `firestore.rules` | Firestore güvenlik kuralları (konsola yapıştırılır) |
 
-```bash
-npm install
-cp .env.example .env.local   # Firebase web uygulaması değerlerini doldurun
-npm run dev
-```
+## Kullanıcı ekleme (Firebase konsolu)
 
-## Firebase tarafında yapılacaklar
+**1. Authentication → Users → Add user**
+- E-posta: `kullaniciadi@users.providergatefvvk.app` (ör. `ahmet.yilmaz@users.providergatefvvk.app`)
+- Şifre: en az 6 karakter
+- Oluşan satırdaki **User UID** değerini kopyalayın.
 
-1. **Authentication → Sign-in method** bölümünde **Email/Password**'ü etkinleştirin.
-2. **Firestore Database** oluşturun (bölge: `europe-west1` veya `eur3`).
-3. **Proje ayarları → Web uygulaması ekle** adımından config değerlerini `.env.local`'a yazın.
-4. Kuralları yayınlayın: `firebase deploy --only firestore:rules`
+Kullanıcı girişte sadece `ahmet.yilmaz` yazar. Gerçek e-posta ile açılan hesaplar e-postanın tamamıyla giriş yapar.
 
-## İlk kurulum
+**2. Firestore Database → `users` koleksiyonu → Add document**
+- Document ID: kopyaladığınız **UID**
+- Alanlar:
 
-1. Güvenlik kurallarını yayınlayın (Firestore → Rules → `firestore.rules` içeriğini yapıştırıp **Publish**).
-2. Uygulamada `/kurulum` adresini açın (giriş sayfasında kurulum yapılmamışsa bağlantı çıkar).
-3. İlk **Sistem Yöneticisi** hesabını oluşturun. Varsayılan roller otomatik eklenir.
-4. **Yönetim** sayfasından tedarikçi firmaları ve kullanıcıları ekleyin.
-
-Kurulum bir kez yapılır; sonrasında kurallar tekrarını engeller.
+| Alan | Tür | Çalışan örneği | Tedarikçi örneği |
+|---|---|---|---|
+| `username` | string | `ahmet.yilmaz` | `ted.ornek` |
+| `displayName` | string | `Ahmet Yılmaz` | `Örnek Çekici Ltd.` |
+| `userType` | string | `employee` | `supplier` |
+| `roles` | array | `admin` (veya `operation`, `pricing`, `finance`, `manager`) | — |
+| `supplierId` | string | — | `TED-001` |
+| `active` | boolean | `true` | `true` |
 
 ## Yetkilendirme
 

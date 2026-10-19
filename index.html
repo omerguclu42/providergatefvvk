@@ -3,10 +3,114 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ProviderGate FVVK</title>
+    <title>Giriş – ProviderGate FVVK</title>
+    <link rel="stylesheet" href="css/styles.css" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div class="login-shell">
+      <aside class="login-brand">
+        <div class="brand-mark" aria-hidden="true">PG</div>
+        <h1>ProviderGate</h1>
+        <p class="brand-sub">FVVK Tedarikçi Portalı</p>
+        <ul class="brand-steps">
+          <li>Atanan hizmetleri takip edin</li>
+          <li>Statüleri güncelleyin ve dosyayı kapatın</li>
+          <li>Fiyatlandırın, faturanızı yükleyin</li>
+        </ul>
+      </aside>
+
+      <main class="login-panel">
+        <form class="login-form" id="loginForm" novalidate>
+          <h2>Giriş yap</h2>
+          <p class="muted">Tedarikçi ve şirket çalışanları aynı ekrandan giriş yapar.</p>
+
+          <div class="alert error" id="error" role="alert" hidden></div>
+
+          <label for="username">Kullanıcı adı</label>
+          <input id="username" autocomplete="username" placeholder="ör. ahmet.yilmaz" autofocus />
+
+          <label for="password">Şifre</label>
+          <div class="password-field">
+            <input id="password" type="password" autocomplete="current-password" />
+            <button type="button" class="link-btn" id="togglePw">Göster</button>
+          </div>
+
+          <button type="submit" class="primary" id="submitBtn">Giriş yap</button>
+          <p class="muted small">Şifrenizi unuttuysanız sistem yöneticinizle iletişime geçin.</p>
+        </form>
+      </main>
+    </div>
+
+    <script type="module">
+      import { signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+      import { auth, usernameToEmail } from "./js/firebase.js";
+      import { loadProfile } from "./js/auth.js";
+      import { homePageFor } from "./js/permissions.js";
+
+      const form = document.getElementById("loginForm");
+      const errorBox = document.getElementById("error");
+      const btn = document.getElementById("submitBtn");
+      const pw = document.getElementById("password");
+
+      document.getElementById("togglePw").addEventListener("click", (e) => {
+        const show = pw.type === "password";
+        pw.type = show ? "text" : "password";
+        e.target.textContent = show ? "Gizle" : "Göster";
+      });
+
+      function showError(msg) {
+        errorBox.textContent = msg;
+        errorBox.hidden = !msg;
+      }
+
+      function authMessage(code) {
+        switch (code) {
+          case "auth/invalid-credential":
+          case "auth/wrong-password":
+          case "auth/user-not-found":
+          case "auth/invalid-email":
+            return "Kullanıcı adı veya şifre hatalı.";
+          case "auth/too-many-requests":
+            return "Çok fazla deneme yapıldı. Lütfen birkaç dakika sonra tekrar deneyin.";
+          case "auth/user-disabled":
+            return "Bu hesap devre dışı bırakılmış. Yöneticinizle iletişime geçin.";
+          case "auth/network-request-failed":
+            return "Bağlantı hatası. İnternet bağlantınızı kontrol edin.";
+          default:
+            return "Giriş yapılamadı. Lütfen tekrar deneyin.";
+        }
+      }
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const username = document.getElementById("username").value;
+        if (!username.trim() || !pw.value) return showError("Kullanıcı adı ve şifre zorunludur.");
+
+        showError("");
+        btn.disabled = true;
+        btn.textContent = "Giriş yapılıyor…";
+        try {
+          const cred = await signInWithEmailAndPassword(auth, usernameToEmail(username), pw.value);
+          const profile = await loadProfile(cred.user);
+          if (!profile) {
+            await signOut(auth);
+            return showError("Hesabınıza tanımlı bir profil bulunamadı. Yöneticinizle iletişime geçin.");
+          }
+          if (profile.active !== true) {
+            await signOut(auth);
+            return showError("Hesabınız pasif durumda.");
+          }
+          location.replace(homePageFor(profile.userType));
+        } catch (err) {
+          console.error(err);
+          showError(err.code === "permission-denied"
+            ? "Profil okunamadı. Firestore güvenlik kuralları yayınlanmamış olabilir."
+            : authMessage(err.code));
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Giriş yap";
+        }
+      });
+    </script>
   </body>
 </html>

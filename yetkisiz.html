@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Yetkisiz – ProviderGate FVVK</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <div class="page-message">
+      <h1>Bu sayfaya erişim yetkiniz yok</h1>
+      <p class="muted">Yetki talebi için sistem yöneticinizle iletişime geçin.</p>
+      <div class="row">
+        <button class="link-btn" id="logout">Farklı hesapla giriş yap</button>
+      </div>
+    </div>
+    <script type="module">
+      import { signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+      import { auth } from "./js/firebase.js";
+      document.getElementById("logout").addEventListener("click", async () => {
+        await signOut(auth);
+        location.replace("index.html");
+      });
+    </script>
+  </body>
+</html>
